@@ -70,7 +70,6 @@ def client_sender(buffer):
             responce = b""
 
             while recv_len:
-                print("recv_len: {}".format(recv_len))
                 data = client.recv(4096)
                 recv_len = len(data)
                 responce += data

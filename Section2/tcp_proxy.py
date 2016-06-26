@@ -64,7 +64,6 @@ def proxy_handler(client_socket, remote_host, remote_port, recieve_first):
         if len(local_buffer):
 
             print("[==>] Received {} bytes from localhost.".format(len(local_buffer)))
-
             hexdump(local_buffer)
 
             # 送信データ処理関数にデータ渡し
@@ -93,7 +92,7 @@ def proxy_handler(client_socket, remote_host, remote_port, recieve_first):
         # ローカル側・リモート側双方からデータが来なければ接続を閉じる
         if not len(local_buffer) or len(remote_buffer):
             client_socket.close()
-            remote_buffer.close()
+            remote_socket.close()
             print("[*] No more data. Closing connections.")
 
             break
@@ -102,23 +101,25 @@ def proxy_handler(client_socket, remote_host, remote_port, recieve_first):
 # 16進数ダンプを整形して表示する関数
 def hexdump(src, length=16):
     result = []
-    digits = 4 if isinstance(src, str) else 2
+    # よくわからんので全部2で
+    digits = 2
+    # digits = 4 if isinstance(src, str) else 2
 
     for i in range(0, len(src), length):
-        s = src[i:i+length]
-        hexa = b' '.join(["%0*X" % (digits, ord(x)) for x in s])
-        text = b''.join([x if 0x20 <= ord(x) < 0x7F else b'.' for x in s])
-        result.append(b"%04X    %-*s    %s" % (i, length*(digits + 1), hexa, text))
+        s = src[i:i+length] # -> byte
+        hexa = ' '.join(["{:0{width}X}".format(x, width=digits) for x in s])
+        text = ''.join([chr(x) if 0x20 <= x < 0x7F else '.' for x in s])
+        result.append("{:04X}    {:{width}s}    {:s}".format(i, hexa, text, width=length*(digits + 1)))
 
-    print(b'\n'.join(result))
+    print('\n'.join(result))
 
 
 def receive_from(connection):
 
-    buffer = ""
+    buffer = b""
 
     # タイムアウト値を２秒に設定
-    connection.timeout(2)
+    connection.settimeout(timeout)
 
     try:
         # データを受け取らなくなるかタイムアウトになるまでデータを受信してbufferに格納
@@ -150,12 +151,16 @@ def main():
 
     # オプションパース
     parser = argparse.ArgumentParser(description="BHP TCP Proxy")
-    parser.add_argument('localhost', required=True)
-    parser.add_argument('localport', required=True)
-    parser.add_argument('remotehost', required=True)
-    parser.add_argument('remoteport', required=True)
+    parser.add_argument('localhost', type=str)
+    parser.add_argument('localport', type=int)
+    parser.add_argument('remotehost', type=str)
+    parser.add_argument('remoteport', type=int)
     parser.add_argument('-rf', '--receive-first', action='store_true')
+    parser.add_argument('-t', '--timeout', type=int, default=2)
     args = parser.parse_args()
+
+    global timeout
+    timeout = args.timeout
 
     if len(sys.argv[1:]) == 0:
         parser.print_usage()
